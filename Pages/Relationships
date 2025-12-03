@@ -1,0 +1,449 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '../utils';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Users, Plus, Search, UserPlus, X, Check, Clock,
+  ArrowRight, Mail, AlertCircle
+} from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+export default function Relationships() {
+  const queryClient = useQueryClient();
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [searchEmail, setSearchEmail] = useState('');
+  const [selectedSport, setSelectedSport] = useState('');
+  const [searchResult, setSearchResult] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [filter, setFilter] = useState('active');
+
+  const sports = [
+    'Basketball', 'Soccer', 'Tennis', 'Swimming', 'Track & Field',
+    'Golf', 'Baseball', 'Football', 'Volleyball', 'Hockey',
+    'CrossFit', 'Weightlifting', 'Boxing', 'MMA', 'Cycling',
+    'Running', 'Triathlon', 'Gymnastics', 'Wrestling', 'Other'
+  ];
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    const userData = await base44.auth.me();
+    setUser(userData);
+    
+    const profiles = await base44.entities.Profile.filter({ user_id: userData.id });
+    if (profiles.length > 0) {
+      setProfile(profiles[0]);
+    }
+  };
+
+  const { data: relationships = [], isLoading } = useQuery({
+    queryKey: ['relationships', user?.id, profile?.role],
+    queryFn: async () => {
+      if (!user || !profile) return [];
+      const filterKey = profile.role === 'coach' ? 'coach_id' : 'athlete_id';
+      return base44.entities.Relationship.filter({ [filterKey]: user.id });
+    },
+    enabled: !!user && !!profile
+  });
+
+  const createRelationshipMutation = useMutation({
+    mutationFn: async (data) => {
+      return base44.entities.Relationship.create(data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['relationships']);
+      setShowAddDialog(false);
+      setSearchEmail('');
+      setSearchResult(null);
+      toast.success('Connection request sent!');
+    }
+  });
+
+  const updateRelationshipMutation = useMutation({
+    mutationFn: async ({ id, data }) => {
+      return base44.entities.Relationship.update(id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['relationships']);
+      toast.success('Relationship updated');
+    }
+  });
+
+  const handleSearch = async () => {
+    if (!searchEmail) return;
+    
+    setSearching(true);
+    setSearchResult(null);
+    
+    try {
+      const users = await base44.entities.User.filter({ email: searchEmail });
+      if (users.length === 0) {
+        setSearchResult({ error: 'No user found with this email' });
+        return;
+      }
+      
+      const foundUser = users[0];
+      const foundProfiles = await base44.entities.Profile.filter({ user_id: foundUser.id });
+      
+      if (foundProfiles.length === 0) {
+        setSearchResult({ error: 'User has not completed their profile' });
+        return;
+      }
+      
+      const foundProfile = foundProfiles[0];
+      
+      if (profile.role === foundProfile.role) {
+        setSearchResult({ error: `You can only connect with ${profile.role === 'coach' ? 'athletes' : 'coaches'}` });
+        return;
+      }
+      
+      const existingRels = await base44.entities.Relationship.filter({
+        coach_id: profile.role === 'coach' ? user.id : foundUser.id,
+        athlete_id: profile.role === 'athlete' ? user.id : foundUser.id
+      });
+      
+      if (existingRels.length > 0) {
+        setSearchResult({ error: 'You already have a connection with this user' });
+        return;
+      }
+      
+      setSearchResult({ user: foundUser, profile: foundProfile });
+    } catch (error) {
+      setSearchResult({ error: 'Search failed. Please try again.' });
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleCreateRelationship = () => {
+    if (!searchResult?.user || !selectedSport) return;
+    
+    const isCoach = profile.role === 'coach';
+    
+    createRelationshipMutation.mutate({
+      coach_id: isCoach ? user.id : searchResult.user.id,
+      athlete_id: isCoach ? searchResult.user.id : user.id,
+      coach_name: isCoach ? user.full_name : searchResult.user.full_name,
+      athlete_name: isCoach ? searchResult.user.full_name : user.full_name,
+      coach_avatar: isCoach ? profile.avatar_url : searchResult.profile.avatar_url,
+      athlete_avatar: isCoach ? searchResult.profile.avatar_url : profile.avatar_url,
+      sport: selectedSport.toLowerCase(),
+      status: 'pending',
+      started_date: new Date().toISOString().split('T')[0]
+    });
+  };
+
+  const filteredRelationships = relationships.filter(rel => {
+    if (filter === 'all') return true;
+    return rel.status === filter;
+  });
+
+  const pendingInvites = relationships.filter(rel => 
+    rel.status === 'pending' && 
+    (profile?.role === 'coach' ? rel.athlete_id !== user?.id : rel.coach_id !== user?.id)
+  );
+
+  if (!profile) return null;
+
+  const isCoach = profile.role === 'coach';
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">
+            {isCoach ? 'My Athletes' : 'My Coaches'}
+          </h1>
+          <p className="mt-1 text-slate-600">
+            Manage your {isCoach ? 'athlete' : 'coach'} connections
+          </p>
+        </div>
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+          <DialogTrigger asChild>
+            <Button className="bg-emerald-600 hover:bg-emerald-700">
+              <UserPlus className="w-4 h-4 mr-2" />
+              {isCoach ? 'Add Athlete' : 'Find Coach'}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {isCoach ? 'Add New Athlete' : 'Connect with Coach'}
+              </DialogTitle>
+              <DialogDescription>
+                Search by email to send a connection request
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter email address"
+                  value={searchEmail}
+                  onChange={(e) => setSearchEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
+                <Button onClick={handleSearch} disabled={searching}>
+                  {searching ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+
+              <AnimatePresence mode="wait">
+                {searchResult?.error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-lg text-sm"
+                  >
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    {searchResult.error}
+                  </motion.div>
+                )}
+
+                {searchResult?.user && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="space-y-4"
+                  >
+                    <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
+                      <Avatar className="w-12 h-12">
+                        <AvatarImage src={searchResult.profile.avatar_url} />
+                        <AvatarFallback className="bg-emerald-100 text-emerald-700">
+                          {searchResult.user.full_name?.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="font-medium text-slate-900">{searchResult.user.full_name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="secondary" className="capitalize text-xs">
+                            {searchResult.profile.role}
+                          </Badge>
+                          <Badge variant="outline" className="capitalize text-xs">
+                            {searchResult.profile.sport}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Sport for this coaching relationship</Label>
+                      <Select value={selectedSport} onValueChange={setSelectedSport}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select sport" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sports.map((sport) => (
+                            <SelectItem key={sport} value={sport}>
+                              {sport}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Button 
+                      className="w-full bg-emerald-600 hover:bg-emerald-700"
+                      onClick={handleCreateRelationship}
+                      disabled={!selectedSport || createRelationshipMutation.isPending}
+                    >
+                      {createRelationshipMutation.isPending ? 'Sending...' : 'Send Connection Request'}
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {pendingInvites.length > 0 && (
+        <Card className="border-0 shadow-sm border-l-4 border-l-amber-500 bg-amber-50/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="w-5 h-5 text-amber-600" />
+              Pending Requests ({pendingInvites.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pendingInvites.map((rel) => {
+              const name = isCoach ? rel.athlete_name : rel.coach_name;
+              const avatar = isCoach ? rel.athlete_avatar : rel.coach_avatar;
+              
+              return (
+                <div key={rel.id} className="flex items-center justify-between p-4 bg-white rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={avatar} />
+                      <AvatarFallback className="bg-slate-100">
+                        {name?.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium text-slate-900">{name}</p>
+                      <p className="text-sm text-slate-500 capitalize">{rel.sport}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => updateRelationshipMutation.mutate({ id: rel.id, data: { status: 'ended' }})}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                      onClick={() => updateRelationshipMutation.mutate({ id: rel.id, data: { status: 'active' }})}
+                    >
+                      <Check className="w-4 h-4 mr-1" />
+                      Accept
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs value={filter} onValueChange={setFilter}>
+        <TabsList className="bg-slate-100">
+          <TabsTrigger value="active">Active</TabsTrigger>
+          <TabsTrigger value="pending">Pending</TabsTrigger>
+          <TabsTrigger value="paused">Paused</TabsTrigger>
+          <TabsTrigger value="all">All</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {isLoading ? (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="border-0 shadow-sm animate-pulse">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-slate-200" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-32 bg-slate-200 rounded" />
+                    <div className="h-3 w-24 bg-slate-200 rounded" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : filteredRelationships.length === 0 ? (
+        <Card className="border-0 shadow-sm">
+          <CardContent className="py-16 text-center">
+            <Users className="w-16 h-16 text-slate-300 mx-auto" />
+            <h3 className="mt-4 text-lg font-medium text-slate-900">
+              No {filter === 'all' ? '' : filter} connections
+            </h3>
+            <p className="mt-2 text-slate-500">
+              {isCoach 
+                ? 'Add athletes to start building your coaching roster'
+                : 'Find coaches to start your training journey'}
+            </p>
+            <Button 
+              className="mt-6 bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => setShowAddDialog(true)}
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              {isCoach ? 'Add Your First Athlete' : 'Find a Coach'}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredRelationships.map((rel, index) => {
+            const name = isCoach ? rel.athlete_name : rel.coach_name;
+            const avatar = isCoach ? rel.athlete_avatar : rel.coach_avatar;
+            
+            return (
+              <motion.div
+                key={rel.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Link to={createPageUrl(`Timeline?relationship=${rel.id}`)}>
+                  <Card className={cn(
+                    "border-0 shadow-sm hover:shadow-md transition-all cursor-pointer group",
+                    rel.status !== 'active' && "opacity-60"
+                  )}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-4">
+                        <Avatar className="w-14 h-14">
+                          <AvatarImage src={avatar} />
+                          <AvatarFallback className="bg-emerald-100 text-emerald-700 text-lg">
+                            {name?.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-slate-900 truncate">{name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="capitalize text-xs">
+                              {rel.sport}
+                            </Badge>
+                            <Badge 
+                              className={cn(
+                                "text-xs",
+                                rel.status === 'active' && "bg-emerald-100 text-emerald-700",
+                                rel.status === 'pending' && "bg-amber-100 text-amber-700",
+                                rel.status === 'paused' && "bg-slate-100 text-slate-700",
+                                rel.status === 'ended' && "bg-red-100 text-red-700"
+                              )}
+                            >
+                              {rel.status}
+                            </Badge>
+                          </div>
+                        </div>
+                        <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

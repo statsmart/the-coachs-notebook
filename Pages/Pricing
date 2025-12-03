@@ -1,0 +1,303 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '../utils';
+import { base44 } from '@/api/base44Client';
+import { motion } from 'framer-motion';
+import { CheckCircle2, X, ArrowRight, Users, User } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+
+export default function Pricing() {
+  const coachPlans = [
+    {
+      name: "Starter",
+      price: 29,
+      description: "Perfect for independent coaches getting started",
+      features: [
+        "Up to 5 athletes",
+        "Unlimited timeline entries",
+        "Image & file uploads",
+        "Basic analytics",
+        "Email support"
+      ],
+      notIncluded: [
+        "Video uploads",
+        "Team collaboration",
+        "Priority support"
+      ],
+      popular: false
+    },
+    {
+      name: "Professional",
+      price: 79,
+      description: "For established coaches with growing rosters",
+      features: [
+        "Up to 25 athletes",
+        "Unlimited timeline entries",
+        "Image, video & file uploads",
+        "Advanced analytics",
+        "Priority support",
+        "Custom branding"
+      ],
+      notIncluded: [
+        "Team collaboration"
+      ],
+      popular: true
+    },
+    {
+      name: "Elite",
+      price: 199,
+      description: "For coaching organizations and teams",
+      features: [
+        "Unlimited athletes",
+        "Unlimited timeline entries",
+        "All media types",
+        "Advanced analytics",
+        "24/7 priority support",
+        "Custom branding",
+        "Team collaboration",
+        "API access"
+      ],
+      notIncluded: [],
+      popular: false
+    }
+  ];
+
+  const athletePlans = [
+    {
+      name: "Basic",
+      price: 9,
+      description: "Stay connected with your coach",
+      features: [
+        "Connect with 1 coach",
+        "View & add timeline entries",
+        "Image uploads",
+        "Mobile app access"
+      ],
+      notIncluded: [
+        "Multiple coaches",
+        "Video uploads",
+        "Analytics dashboard"
+      ],
+      popular: false
+    },
+    {
+      name: "Active",
+      price: 19,
+      description: "For serious athletes with multiple coaches",
+      features: [
+        "Connect with up to 3 coaches",
+        "Unlimited timeline entries",
+        "Image & video uploads",
+        "Progress analytics",
+        "Mobile app access"
+      ],
+      notIncluded: [
+        "Unlimited coaches"
+      ],
+      popular: true
+    },
+    {
+      name: "Pro Athlete",
+      price: 39,
+      description: "For professional athletes",
+      features: [
+        "Unlimited coaches",
+        "Unlimited timeline entries",
+        "All media types",
+        "Advanced analytics",
+        "Priority support",
+        "Data export"
+      ],
+      notIncluded: [],
+      popular: false
+    }
+  ];
+
+  const PlanCard = ({ plan, type }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      viewport={{ once: true }}
+      className={cn(
+        "relative rounded-3xl p-8 bg-white border-2 transition-all",
+        plan.popular ? "border-emerald-500 shadow-xl" : "border-slate-200"
+      )}
+    >
+      {plan.popular && (
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+          <span className="px-4 py-1 bg-emerald-500 text-white text-sm font-medium rounded-full">
+            Most Popular
+          </span>
+        </div>
+      )}
+      
+      <div className="text-center">
+        <h3 className="text-xl font-semibold text-slate-900">{plan.name}</h3>
+        <p className="mt-2 text-slate-600 text-sm">{plan.description}</p>
+        <div className="mt-6">
+          <span className="text-5xl font-bold text-slate-900">${plan.price}</span>
+          <span className="text-slate-500">/month</span>
+        </div>
+      </div>
+
+      <div className="mt-8 space-y-4">
+        {plan.features.map((feature) => (
+          <div key={feature} className="flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+            <span className="text-slate-700 text-sm">{feature}</span>
+          </div>
+        ))}
+        {plan.notIncluded.map((feature) => (
+          <div key={feature} className="flex items-center gap-3 opacity-50">
+            <X className="w-5 h-5 text-slate-400 flex-shrink-0" />
+            <span className="text-slate-500 text-sm">{feature}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8">
+        <Button 
+          className={cn(
+            "w-full h-12",
+            plan.popular 
+              ? "bg-emerald-600 hover:bg-emerald-700" 
+              : "bg-slate-900 hover:bg-slate-800"
+          )}
+          onClick={() => base44.auth.redirectToLogin()}
+        >
+          Get Started
+          <ArrowRight className="ml-2 w-4 h-4" />
+        </Button>
+      </div>
+    </motion.div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      {/* Hero */}
+      <section className="pt-24 pb-16 bg-gradient-to-b from-white to-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h1 className="text-5xl font-bold text-slate-900">
+              Simple, transparent pricing
+            </h1>
+            <p className="mt-4 text-xl text-slate-600 max-w-2xl mx-auto">
+              Choose the plan that fits your coaching journey. All plans include a 14-day free trial.
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Pricing Tables */}
+      <section className="pb-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Tabs defaultValue="coach" className="w-full">
+            <div className="flex justify-center mb-12">
+              <TabsList className="bg-slate-100 p-1 rounded-full">
+                <TabsTrigger 
+                  value="coach" 
+                  className="flex items-center gap-2 px-6 py-3 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                >
+                  <Users className="w-4 h-4" />
+                  For Coaches
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="athlete"
+                  className="flex items-center gap-2 px-6 py-3 rounded-full data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                >
+                  <User className="w-4 h-4" />
+                  For Athletes
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="coach">
+              <div className="grid md:grid-cols-3 gap-8">
+                {coachPlans.map((plan) => (
+                  <PlanCard key={plan.name} plan={plan} type="coach" />
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="athlete">
+              <div className="grid md:grid-cols-3 gap-8">
+                {athletePlans.map((plan) => (
+                  <PlanCard key={plan.name} plan={plan} type="athlete" />
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-24 bg-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">
+            Frequently asked questions
+          </h2>
+          
+          <div className="space-y-6">
+            {[
+              {
+                q: "Can I switch plans later?",
+                a: "Yes, you can upgrade or downgrade your plan at any time. Changes take effect on your next billing cycle."
+              },
+              {
+                q: "Is there a free trial?",
+                a: "Absolutely! All plans come with a 14-day free trial. No credit card required to start."
+              },
+              {
+                q: "How secure is my data?",
+                a: "We use bank-level encryption for all data. Your coaching records are as protected as medical records."
+              },
+              {
+                q: "Can I cancel anytime?",
+                a: "Yes, you can cancel your subscription at any time. You'll retain access until the end of your billing period."
+              }
+            ].map((faq, index) => (
+              <motion.div
+                key={faq.q}
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.1 }}
+                viewport={{ once: true }}
+                className="p-6 bg-slate-50 rounded-2xl"
+              >
+                <h3 className="font-semibold text-slate-900">{faq.q}</h3>
+                <p className="mt-2 text-slate-600">{faq.a}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-16 bg-emerald-600">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl font-bold text-white">
+            Start your free trial today
+          </h2>
+          <p className="mt-4 text-emerald-100">
+            No credit card required. Cancel anytime.
+          </p>
+          <Button 
+            size="lg" 
+            className="mt-8 bg-white text-emerald-600 hover:bg-emerald-50"
+            onClick={() => base44.auth.redirectToLogin()}
+          >
+            Get Started Free
+            <ArrowRight className="ml-2 w-5 h-5" />
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+}

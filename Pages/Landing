@@ -1,0 +1,295 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '../utils';
+import { base44 } from '@/api/base44Client';
+import { motion } from 'framer-motion';
+import { 
+  BookOpen, ArrowRight, Shield, Clock, Users, 
+  MessageSquare, Upload, Zap, CheckCircle2
+} from 'lucide-react';
+import { Button } from "@/components/ui/button";
+
+export default function Landing() {
+  const features = [
+    {
+      icon: MessageSquare,
+      title: "Shared Timeline",
+      description: "Every interaction documented in one continuous, chronological thread."
+    },
+    {
+      icon: Upload,
+      title: "Rich Media Support",
+      description: "Upload notes, images, videos, and files to track progress visually."
+    },
+    {
+      icon: Users,
+      title: "Multi-Relationship",
+      description: "Coaches manage multiple athletes. Athletes work with multiple coaches."
+    },
+    {
+      icon: Shield,
+      title: "Medical-Grade Privacy",
+      description: "Your data is encrypted and protected like medical records."
+    },
+    {
+      icon: Clock,
+      title: "Persistent History",
+      description: "Access your complete coaching history anytime, anywhere."
+    },
+    {
+      icon: Zap,
+      title: "Real-Time Sync",
+      description: "Updates appear instantly across all devices."
+    }
+  ];
+
+  const testimonials = [
+    {
+      quote: "Finally, a platform that understands the coach-athlete relationship. Game changer.",
+      author: "Sarah Mitchell",
+      role: "Olympic Swimming Coach",
+      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop"
+    },
+    {
+      quote: "I can track my progress with all my coaches in one place. Incredibly valuable.",
+      author: "Marcus Chen",
+      role: "Professional Tennis Player",
+      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop"
+    }
+  ];
+
+  return (
+    <div className="overflow-hidden">
+      {/* Hero Section */}
+      <section className="relative min-h-[90vh] flex items-center">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-white to-teal-50"></div>
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-96 h-96 bg-emerald-200 rounded-full blur-3xl opacity-30"></div>
+          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-teal-200 rounded-full blur-3xl opacity-30"></div>
+        </div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 rounded-full text-emerald-700 text-sm font-medium mb-6">
+                <Zap className="w-4 h-4" />
+                The future of coaching communication
+              </div>
+              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-slate-900 leading-tight">
+                Your coaching
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">
+                  notebook, digitized.
+                </span>
+              </h1>
+              <p className="mt-6 text-xl text-slate-600 leading-relaxed max-w-xl">
+                A secure timeline for coaches and athletes to communicate, track progress, 
+                and build lasting relationships—like a doctor's chart for sports.
+              </p>
+              <div className="mt-10 flex flex-col sm:flex-row gap-4">
+                <Button 
+                  size="lg" 
+                  className="bg-emerald-600 hover:bg-emerald-700 text-lg px-8 h-14"
+                  onClick={() => base44.auth.redirectToLogin()}
+                >
+                  Start Free Trial
+                  <ArrowRight className="ml-2 w-5 h-5" />
+                </Button>
+                <Link to={createPageUrl('Pricing')}>
+                  <Button size="lg" variant="outline" className="text-lg px-8 h-14 w-full sm:w-auto">
+                    View Pricing
+                  </Button>
+                </Link>
+              </div>
+              <div className="mt-10 flex items-center gap-6 text-sm text-slate-500">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  14-day free trial
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  No credit card required
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="relative hidden lg:block"
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500 to-teal-500 rounded-3xl transform rotate-3"></div>
+                <img
+                  src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&h=700&fit=crop"
+                  alt="Coach and athlete"
+                  className="relative rounded-3xl shadow-2xl object-cover w-full h-[500px]"
+                />
+                
+                {/* Floating Card */}
+                <div className="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl p-4 max-w-[200px]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Updated</p>
+                      <p className="text-sm font-semibold text-slate-900">Just now</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <h2 className="text-4xl font-bold text-slate-900">
+              Everything you need for effective coaching
+            </h2>
+            <p className="mt-4 text-xl text-slate-600">
+              Built specifically for the coach-athlete relationship
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((feature, index) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                viewport={{ once: true }}
+                className="group p-8 bg-slate-50 rounded-2xl hover:bg-emerald-50 transition-all duration-300"
+              >
+                <div className="w-12 h-12 rounded-xl bg-emerald-100 group-hover:bg-emerald-200 flex items-center justify-center transition-colors">
+                  <feature.icon className="w-6 h-6 text-emerald-600" />
+                </div>
+                <h3 className="mt-6 text-xl font-semibold text-slate-900">{feature.title}</h3>
+                <p className="mt-3 text-slate-600 leading-relaxed">{feature.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="py-24 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <h2 className="text-4xl font-bold text-slate-900">
+              Simple to get started
+            </h2>
+            <p className="mt-4 text-xl text-slate-600">
+              Three steps to transform your coaching practice
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { step: "01", title: "Create Your Profile", description: "Sign up as a coach or athlete and set up your professional profile." },
+              { step: "02", title: "Connect & Invite", description: "Link with your coaches or athletes to create shared timelines." },
+              { step: "03", title: "Start Documenting", description: "Upload notes, media, and milestones to build your coaching history." }
+            ].map((item, index) => (
+              <motion.div
+                key={item.step}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                viewport={{ once: true }}
+                className="relative"
+              >
+                <div className="text-7xl font-bold text-emerald-100">{item.step}</div>
+                <h3 className="mt-4 text-xl font-semibold text-slate-900">{item.title}</h3>
+                <p className="mt-2 text-slate-600">{item.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-8">
+            {testimonials.map((testimonial, index) => (
+              <motion.div
+                key={testimonial.author}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                viewport={{ once: true }}
+                className="p-8 bg-slate-50 rounded-2xl"
+              >
+                <p className="text-xl text-slate-700 leading-relaxed">"{testimonial.quote}"</p>
+                <div className="mt-6 flex items-center gap-4">
+                  <img
+                    src={testimonial.avatar}
+                    alt={testimonial.author}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                  <div>
+                    <p className="font-semibold text-slate-900">{testimonial.author}</p>
+                    <p className="text-sm text-slate-500">{testimonial.role}</p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-24 bg-gradient-to-br from-emerald-600 to-teal-600">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl font-bold text-white">
+            Ready to elevate your coaching?
+          </h2>
+          <p className="mt-4 text-xl text-emerald-100">
+            Join thousands of coaches and athletes already using Coach's Notebook.
+          </p>
+          <div className="mt-10">
+            <Button 
+              size="lg" 
+              className="bg-white text-emerald-600 hover:bg-emerald-50 text-lg px-10 h-14"
+              onClick={() => base44.auth.redirectToLogin()}
+            >
+              Start Your Free Trial
+              <ArrowRight className="ml-2 w-5 h-5" />
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-12 bg-slate-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-white" />
+              </div>
+              <span className="font-semibold text-white">Coach's Notebook</span>
+            </div>
+            <div className="flex items-center gap-8 text-slate-400 text-sm">
+              <Link to={createPageUrl('Pricing')} className="hover:text-white transition-colors">Pricing</Link>
+              <a href="#" className="hover:text-white transition-colors">Privacy</a>
+              <a href="#" className="hover:text-white transition-colors">Terms</a>
+            </div>
+            <p className="text-slate-500 text-sm">
+              © 2024 Coach's Notebook. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

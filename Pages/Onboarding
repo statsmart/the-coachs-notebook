@@ -1,0 +1,437 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createPageUrl } from '../utils';
+import { base44 } from '@/api/base44Client';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  User, Users, ChevronRight, ChevronLeft, Check,
+  MapPin, Trophy, Target, Camera, Upload
+} from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
+
+export default function Onboarding() {
+  const navigate = useNavigate();
+  const [step, setStep] = useState(1);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    role: '',
+    sport: '',
+    age: '',
+    gender: '',
+    location: '',
+    bio: '',
+    avatar_url: '',
+    experience_years: '',
+    specializations: [],
+    goals: ''
+  });
+
+  const sports = [
+    'Basketball', 'Soccer', 'Tennis', 'Swimming', 'Track & Field',
+    'Golf', 'Baseball', 'Football', 'Volleyball', 'Hockey',
+    'CrossFit', 'Weightlifting', 'Boxing', 'MMA', 'Cycling',
+    'Running', 'Triathlon', 'Gymnastics', 'Wrestling', 'Other'
+  ];
+
+  const specializations = [
+    'Strength & Conditioning', 'Skills Development', 'Mental Performance',
+    'Nutrition', 'Recovery', 'Tactical Analysis', 'Youth Development'
+  ];
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    const userData = await base44.auth.me();
+    setUser(userData);
+    
+    // Check if profile already exists
+    const profiles = await base44.entities.Profile.filter({ user_id: userData.id });
+    if (profiles.length > 0) {
+      navigate(createPageUrl('Dashboard'));
+    }
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setUploadingAvatar(true);
+    try {
+      const result = await base44.integrations.Core.UploadFile({ file });
+      setFormData(prev => ({ ...prev, avatar_url: result.file_url }));
+    } catch (error) {
+      console.error('Upload failed:', error);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      await base44.entities.Profile.create({
+        user_id: user.id,
+        ...formData,
+        age: parseInt(formData.age) || null,
+        experience_years: parseInt(formData.experience_years) || null,
+        subscription_tier: 'free',
+        subscription_status: 'trial'
+      });
+      navigate(createPageUrl('Dashboard'));
+    } catch (error) {
+      console.error('Failed to create profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const canProceed = () => {
+    switch (step) {
+      case 1: return formData.role !== '';
+      case 2: return formData.sport !== '';
+      case 3: return true;
+      default: return true;
+    }
+  };
+
+  const totalSteps = 4;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-xl bg-white rounded-3xl shadow-xl overflow-hidden"
+      >
+        {/* Progress Bar */}
+        <div className="h-2 bg-slate-100">
+          <motion.div
+            className="h-full bg-emerald-500"
+            initial={{ width: 0 }}
+            animate={{ width: `${(step / totalSteps) * 100}%` }}
+            transition={{ duration: 0.3 }}
+          />
+        </div>
+
+        <div className="p-8">
+          {/* Step Indicator */}
+          <div className="flex justify-center mb-8">
+            <div className="flex items-center gap-2">
+              {[1, 2, 3, 4].map((s) => (
+                <div
+                  key={s}
+                  className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-all",
+                    step === s
+                      ? "bg-emerald-500 text-white"
+                      : step > s
+                      ? "bg-emerald-100 text-emerald-600"
+                      : "bg-slate-100 text-slate-400"
+                  )}
+                >
+                  {step > s ? <Check className="w-5 h-5" /> : s}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <AnimatePresence mode="wait">
+            {/* Step 1: Role Selection */}
+            {step === 1 && (
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <div className="text-center">
+                  <h2 className="text-2xl font-bold text-slate-900">Welcome to Coach's Notebook</h2>
+                  <p className="mt-2 text-slate-600">First, tell us who you are</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mt-8">
+                  <button
+                    onClick={() => setFormData({ ...formData, role: 'coach' })}
+                    className={cn(
+                      "p-6 rounded-2xl border-2 transition-all text-left",
+                      formData.role === 'coach'
+                        ? "border-emerald-500 bg-emerald-50"
+                        : "border-slate-200 hover:border-slate-300"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-14 h-14 rounded-xl flex items-center justify-center mb-4",
+                      formData.role === 'coach' ? "bg-emerald-500" : "bg-slate-100"
+                    )}>
+                      <Users className={cn(
+                        "w-7 h-7",
+                        formData.role === 'coach' ? "text-white" : "text-slate-600"
+                      )} />
+                    </div>
+                    <h3 className="font-semibold text-slate-900">I'm a Coach</h3>
+                    <p className="text-sm text-slate-500 mt-1">I train and mentor athletes</p>
+                  </button>
+
+                  <button
+                    onClick={() => setFormData({ ...formData, role: 'athlete' })}
+                    className={cn(
+                      "p-6 rounded-2xl border-2 transition-all text-left",
+                      formData.role === 'athlete'
+                        ? "border-emerald-500 bg-emerald-50"
+                        : "border-slate-200 hover:border-slate-300"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-14 h-14 rounded-xl flex items-center justify-center mb-4",
+                      formData.role === 'athlete' ? "bg-emerald-500" : "bg-slate-100"
+                    )}>
+                      <User className={cn(
+                        "w-7 h-7",
+                        formData.role === 'athlete' ? "text-white" : "text-slate-600"
+                      )} />
+                    </div>
+                    <h3 className="font-semibold text-slate-900">I'm an Athlete</h3>
+                    <p className="text-sm text-slate-500 mt-1">I'm training to improve</p>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 2: Sport Selection */}
+            {step === 2 && (
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <div className="text-center">
+                  <Trophy className="w-12 h-12 text-emerald-500 mx-auto" />
+                  <h2 className="text-2xl font-bold text-slate-900 mt-4">What's your sport?</h2>
+                  <p className="mt-2 text-slate-600">Select your primary sport</p>
+                </div>
+
+                <div className="space-y-4 mt-8">
+                  <Select
+                    value={formData.sport}
+                    onValueChange={(value) => setFormData({ ...formData, sport: value })}
+                  >
+                    <SelectTrigger className="h-12">
+                      <SelectValue placeholder="Select your sport" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sports.map((sport) => (
+                        <SelectItem key={sport} value={sport.toLowerCase()}>
+                          {sport}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {formData.role === 'coach' && (
+                    <div className="space-y-2">
+                      <Label>Years of Experience</Label>
+                      <Input
+                        type="number"
+                        placeholder="e.g., 5"
+                        value={formData.experience_years}
+                        onChange={(e) => setFormData({ ...formData, experience_years: e.target.value })}
+                        className="h-12"
+                      />
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 3: Personal Details */}
+            {step === 3 && (
+              <motion.div
+                key="step3"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <div className="text-center">
+                  <MapPin className="w-12 h-12 text-emerald-500 mx-auto" />
+                  <h2 className="text-2xl font-bold text-slate-900 mt-4">About You</h2>
+                  <p className="mt-2 text-slate-600">Help others get to know you</p>
+                </div>
+
+                <div className="space-y-4 mt-8">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Age</Label>
+                      <Input
+                        type="number"
+                        placeholder="e.g., 25"
+                        value={formData.age}
+                        onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                        className="h-12"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Gender</Label>
+                      <Select
+                        value={formData.gender}
+                        onValueChange={(value) => setFormData({ ...formData, gender: value })}
+                      >
+                        <SelectTrigger className="h-12">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Location</Label>
+                    <Input
+                      placeholder="e.g., Los Angeles, USA"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      className="h-12"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 4: Profile Picture & Bio */}
+            {step === 4 && (
+              <motion.div
+                key="step4"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <div className="text-center">
+                  <Target className="w-12 h-12 text-emerald-500 mx-auto" />
+                  <h2 className="text-2xl font-bold text-slate-900 mt-4">Final Touches</h2>
+                  <p className="mt-2 text-slate-600">Add a photo and bio</p>
+                </div>
+
+                <div className="flex flex-col items-center gap-4 mt-8">
+                  <Avatar className="w-24 h-24">
+                    <AvatarImage src={formData.avatar_url} />
+                    <AvatarFallback className="bg-emerald-100 text-emerald-700 text-2xl">
+                      {user?.full_name?.charAt(0) || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
+                    <Button variant="outline" size="sm" disabled={uploadingAvatar} asChild>
+                      <span>
+                        {uploadingAvatar ? (
+                          'Uploading...'
+                        ) : (
+                          <>
+                            <Camera className="w-4 h-4 mr-2" />
+                            Upload Photo
+                          </>
+                        )}
+                      </span>
+                    </Button>
+                  </label>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Bio</Label>
+                    <Textarea
+                      placeholder={formData.role === 'coach' 
+                        ? "Tell athletes about your coaching philosophy and experience..."
+                        : "Share your athletic journey and what you're working towards..."
+                      }
+                      value={formData.bio}
+                      onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                      rows={4}
+                    />
+                  </div>
+
+                  {formData.role === 'athlete' && (
+                    <div className="space-y-2">
+                      <Label>Goals</Label>
+                      <Input
+                        placeholder="What are you working towards?"
+                        value={formData.goals}
+                        onChange={(e) => setFormData({ ...formData, goals: e.target.value })}
+                        className="h-12"
+                      />
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Navigation */}
+          <div className="flex justify-between mt-8 pt-6 border-t border-slate-100">
+            {step > 1 ? (
+              <Button
+                variant="ghost"
+                onClick={() => setStep(step - 1)}
+              >
+                <ChevronLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+            ) : (
+              <div />
+            )}
+
+            {step < totalSteps ? (
+              <Button
+                onClick={() => setStep(step + 1)}
+                disabled={!canProceed()}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                Continue
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            ) : (
+              <Button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {loading ? 'Creating Profile...' : 'Complete Setup'}
+                <Check className="w-4 h-4 ml-2" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}

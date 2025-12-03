@@ -1,0 +1,75 @@
+{
+  "name": "TimelineEntry",
+  "type": "object",
+  "properties": {
+    "relationship_id": {
+      "type": "string",
+      "description": "Reference to the Relationship"
+    },
+    "author_id": {
+      "type": "string",
+      "description": "Who created this entry"
+    },
+    "author_name": {
+      "type": "string"
+    },
+    "author_role": {
+      "type": "string",
+      "enum": [
+        "coach",
+        "athlete"
+      ]
+    },
+    "author_avatar": {
+      "type": "string"
+    },
+    "entry_type": {
+      "type": "string",
+      "enum": [
+        "note",
+        "image",
+        "video",
+        "file",
+        "milestone"
+      ],
+      "default": "note"
+    },
+    "title": {
+      "type": "string",
+      "description": "Optional title for the entry"
+    },
+    "content": {
+      "type": "string",
+      "description": "Text content or description"
+    },
+    "media_url": {
+      "type": "string",
+      "description": "URL for uploaded media"
+    },
+    "media_name": {
+      "type": "string",
+      "description": "Original filename"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Categorization tags"
+    },
+    "is_pinned": {
+      "type": "boolean",
+      "default": false
+    },
+    "is_private": {
+      "type": "boolean",
+      "default": false,
+      "description": "Only visible to author"
+    }
+  },
+  "required": [
+    "relationship_id",
+    "author_id",
+    "content"
+  ]
+}

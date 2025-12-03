@@ -1,0 +1,92 @@
+{
+  "name": "Profile",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Reference to the User entity"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "coach",
+        "athlete"
+      ],
+      "description": "User role type"
+    },
+    "sport": {
+      "type": "string",
+      "description": "Primary sport"
+    },
+    "secondary_sports": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Additional sports"
+    },
+    "age": {
+      "type": "number",
+      "description": "User's age"
+    },
+    "gender": {
+      "type": "string",
+      "enum": [
+        "male",
+        "female",
+        "other",
+        "prefer_not_to_say"
+      ]
+    },
+    "location": {
+      "type": "string",
+      "description": "City, Country"
+    },
+    "bio": {
+      "type": "string",
+      "description": "Short biography"
+    },
+    "avatar_url": {
+      "type": "string",
+      "description": "Profile photo URL"
+    },
+    "experience_years": {
+      "type": "number",
+      "description": "Years of experience"
+    },
+    "specializations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Areas of expertise (for coaches)"
+    },
+    "goals": {
+      "type": "string",
+      "description": "Athletic goals (for athletes)"
+    },
+    "subscription_tier": {
+      "type": "string",
+      "enum": [
+        "free",
+        "basic",
+        "pro",
+        "elite"
+      ],
+      "default": "free"
+    },
+    "subscription_status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive",
+        "trial"
+      ],
+      "default": "trial"
+    }
+  },
+  "required": [
+    "user_id",
+    "role"
+  ]
+}

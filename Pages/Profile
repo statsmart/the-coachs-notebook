@@ -1,0 +1,405 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '../utils';
+import { base44 } from '@/api/base44Client';
+import { useMutation } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { 
+  User, MapPin, Calendar, Trophy, Edit2, Camera, Save, X,
+  Briefcase, Target, Star
+} from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+
+export default function Profile() {
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [editData, setEditData] = useState({});
+  const [uploading, setUploading] = useState(false);
+
+  const sports = [
+    'Basketball', 'Soccer', 'Tennis', 'Swimming', 'Track & Field',
+    'Golf', 'Baseball', 'Football', 'Volleyball', 'Hockey',
+    'CrossFit', 'Weightlifting', 'Boxing', 'MMA', 'Cycling',
+    'Running', 'Triathlon', 'Gymnastics', 'Wrestling', 'Other'
+  ];
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    const userData = await base44.auth.me();
+    setUser(userData);
+    
+    const profiles = await base44.entities.Profile.filter({ user_id: userData.id });
+    if (profiles.length > 0) {
+      setProfile(profiles[0]);
+      setEditData(profiles[0]);
+    }
+    setLoading(false);
+  };
+
+  const updateMutation = useMutation({
+    mutationFn: async (data) => {
+      return base44.entities.Profile.update(profile.id, data);
+    },
+    onSuccess: (updatedProfile) => {
+      setProfile({ ...profile, ...editData });
+      setEditing(false);
+      toast.success('Profile updated!');
+    }
+  });
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setEditData({ ...editData, avatar_url: file_url });
+      toast.success('Photo uploaded!');
+    } catch (error) {
+      toast.error('Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSave = () => {
+    updateMutation.mutate(editData);
+  };
+
+  const handleCancel = () => {
+    setEditData(profile);
+    setEditing(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="animate-pulse">
+          <div className="h-48 bg-slate-200 rounded-2xl" />
+          <div className="h-64 bg-slate-100 rounded-2xl mt-6" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="max-w-2xl mx-auto py-12 text-center">
+        <User className="w-16 h-16 text-slate-300 mx-auto" />
+        <h2 className="mt-4 text-xl font-semibold text-slate-900">Complete Your Profile</h2>
+        <p className="mt-2 text-slate-600">Set up your profile to start using Coach's Notebook</p>
+        <Link to={createPageUrl('Onboarding')}>
+          <Button className="mt-6 bg-emerald-600 hover:bg-emerald-700">
+            Get Started
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  const isCoach = profile.role === 'coach';
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <Card className="border-0 shadow-sm overflow-hidden">
+          <div className="h-32 bg-gradient-to-br from-emerald-500 to-teal-600" />
+          <CardContent className="relative pt-0 pb-6 px-6">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12">
+              <div className="relative">
+                <Avatar className="w-24 h-24 border-4 border-white shadow-lg">
+                  <AvatarImage src={editing ? editData.avatar_url : profile.avatar_url} />
+                  <AvatarFallback className="bg-emerald-100 text-emerald-700 text-2xl">
+                    {user?.full_name?.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                {editing && (
+                  <label className="absolute bottom-0 right-0 w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-emerald-700 transition-colors">
+                    <Camera className="w-4 h-4 text-white" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+              <div className="flex-1 sm:mb-2">
+                <h1 className="text-2xl font-bold text-slate-900">{user?.full_name}</h1>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <Badge className="bg-emerald-100 text-emerald-700 capitalize">
+                    {profile.role}
+                  </Badge>
+                  <Badge variant="outline" className="capitalize">
+                    {profile.sport}
+                  </Badge>
+                  {profile.subscription_tier && (
+                    <Badge variant="secondary" className="capitalize">
+                      {profile.subscription_tier} Plan
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <div className="sm:mb-2">
+                {editing ? (
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={handleCancel}>
+                      <X className="w-4 h-4 mr-1" />
+                      Cancel
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                      onClick={handleSave}
+                      disabled={updateMutation.isPending}
+                    >
+                      <Save className="w-4 h-4 mr-1" />
+                      Save
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+                    <Edit2 className="w-4 h-4 mr-1" />
+                    Edit Profile
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* About Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card className="border-0 shadow-sm h-full">
+            <CardHeader>
+              <CardTitle className="text-lg">About</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {editing ? (
+                <>
+                  <div className="space-y-2">
+                    <Label>Bio</Label>
+                    <Textarea
+                      value={editData.bio || ''}
+                      onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
+                      placeholder="Tell us about yourself..."
+                      className="h-24"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Location</Label>
+                    <Input
+                      value={editData.location || ''}
+                      onChange={(e) => setEditData({ ...editData, location: e.target.value })}
+                      placeholder="City, Country"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Age</Label>
+                      <Input
+                        type="number"
+                        value={editData.age || ''}
+                        onChange={(e) => setEditData({ ...editData, age: parseInt(e.target.value) || '' })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Experience (years)</Label>
+                      <Input
+                        type="number"
+                        value={editData.experience_years || ''}
+                        onChange={(e) => setEditData({ ...editData, experience_years: parseInt(e.target.value) || '' })}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-slate-600">
+                    {profile.bio || 'No bio added yet.'}
+                  </p>
+                  <div className="space-y-3 pt-4">
+                    {profile.location && (
+                      <div className="flex items-center gap-3 text-slate-600">
+                        <MapPin className="w-4 h-4 text-slate-400" />
+                        {profile.location}
+                      </div>
+                    )}
+                    {profile.age && (
+                      <div className="flex items-center gap-3 text-slate-600">
+                        <Calendar className="w-4 h-4 text-slate-400" />
+                        {profile.age} years old
+                      </div>
+                    )}
+                    {profile.experience_years && (
+                      <div className="flex items-center gap-3 text-slate-600">
+                        <Briefcase className="w-4 h-4 text-slate-400" />
+                        {profile.experience_years} years experience
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Sport Details */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card className="border-0 shadow-sm h-full">
+            <CardHeader>
+              <CardTitle className="text-lg">
+                {isCoach ? 'Coaching Details' : 'Athletic Profile'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {editing ? (
+                <>
+                  <div className="space-y-2">
+                    <Label>Primary Sport</Label>
+                    <Select 
+                      value={editData.sport} 
+                      onValueChange={(value) => setEditData({ ...editData, sport: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sports.map((sport) => (
+                          <SelectItem key={sport} value={sport.toLowerCase()}>
+                            {sport}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {isCoach ? (
+                    <div className="space-y-2">
+                      <Label>Specializations</Label>
+                      <Textarea
+                        value={editData.specializations?.join(', ') || ''}
+                        onChange={(e) => setEditData({ 
+                          ...editData, 
+                          specializations: e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                        })}
+                        placeholder="e.g. Youth development, Speed training, Injury recovery"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>Goals</Label>
+                      <Textarea
+                        value={editData.goals || ''}
+                        onChange={(e) => setEditData({ ...editData, goals: e.target.value })}
+                        placeholder="What are your athletic goals?"
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <Trophy className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-500">Primary Sport</p>
+                      <p className="font-medium text-slate-900 capitalize">{profile.sport}</p>
+                    </div>
+                  </div>
+
+                  {isCoach && profile.specializations?.length > 0 && (
+                    <div className="pt-4">
+                      <p className="text-sm text-slate-500 mb-2 flex items-center gap-2">
+                        <Star className="w-4 h-4" />
+                        Specializations
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {profile.specializations.map((spec) => (
+                          <Badge key={spec} variant="secondary">{spec}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {!isCoach && profile.goals && (
+                    <div className="pt-4">
+                      <p className="text-sm text-slate-500 mb-2 flex items-center gap-2">
+                        <Target className="w-4 h-4" />
+                        Goals
+                      </p>
+                      <p className="text-slate-700">{profile.goals}</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Subscription Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-500 to-teal-600">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="text-white">
+                <p className="text-emerald-100 text-sm">Current Plan</p>
+                <p className="text-2xl font-bold capitalize">
+                  {profile.subscription_tier || 'Free Trial'}
+                </p>
+                <p className="text-emerald-100 text-sm mt-1">
+                  Status: <span className="capitalize">{profile.subscription_status || 'trial'}</span>
+                </p>
+              </div>
+              <Link to={createPageUrl('Pricing')}>
+                <Button className="bg-white/20 hover:bg-white/30 text-white border-0">
+                  {profile.subscription_tier === 'free' ? 'Upgrade Plan' : 'Manage Subscription'}
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}

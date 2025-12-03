@@ -1,0 +1,56 @@
+{
+  "name": "Relationship",
+  "type": "object",
+  "properties": {
+    "coach_id": {
+      "type": "string",
+      "description": "Coach's user ID"
+    },
+    "athlete_id": {
+      "type": "string",
+      "description": "Athlete's user ID"
+    },
+    "coach_name": {
+      "type": "string",
+      "description": "Coach's display name"
+    },
+    "athlete_name": {
+      "type": "string",
+      "description": "Athlete's display name"
+    },
+    "coach_avatar": {
+      "type": "string",
+      "description": "Coach's avatar URL"
+    },
+    "athlete_avatar": {
+      "type": "string",
+      "description": "Athlete's avatar URL"
+    },
+    "sport": {
+      "type": "string",
+      "description": "Sport for this coaching relationship"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "active",
+        "paused",
+        "ended"
+      ],
+      "default": "pending"
+    },
+    "started_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Private notes about the relationship"
+    }
+  },
+  "required": [
+    "coach_id",
+    "athlete_id"
+  ]
+}

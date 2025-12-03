@@ -1,0 +1,367 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { createPageUrl } from '../utils';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Plus, ChevronDown, Calendar, Filter, Search,
+  Users, ArrowLeft, Pin, Clock
+} from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import TimelineEntryCard from "../components/timeline/TimelineEntryCard";
+import NewEntryForm from "../components/timeline/NewEntryForm";
+
+export default function Timeline() {
+  const queryClient = useQueryClient();
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [selectedRelationship, setSelectedRelationship] = useState(null);
+  const [showNewEntry, setShowNewEntry] = useState(false);
+  const [filterType, setFilterType] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    const userData = await base44.auth.me();
+    setUser(userData);
+    
+    const profiles = await base44.entities.Profile.filter({ user_id: userData.id });
+    if (profiles.length > 0) {
+      setProfile(profiles[0]);
+    }
+
+    // Check URL for relationship param
+    const urlParams = new URLSearchParams(window.location.search);
+    const relationshipId = urlParams.get('relationship');
+    if (relationshipId) {
+      const rels = await base44.entities.Relationship.filter({ id: relationshipId });
+      if (rels.length > 0) {
+        setSelectedRelationship(rels[0]);
+      }
+    }
+  };
+
+  const { data: relationships = [] } = useQuery({
+    queryKey: ['relationships', user?.id, profile?.role],
+    queryFn: async () => {
+      if (!user || !profile) return [];
+      const filterKey = profile.role === 'coach' ? 'coach_id' : 'athlete_id';
+      return base44.entities.Relationship.filter({ [filterKey]: user.id, status: 'active' });
+    },
+    enabled: !!user && !!profile
+  });
+
+  const { data: entries = [], isLoading: entriesLoading } = useQuery({
+    queryKey: ['timeline-entries', selectedRelationship?.id],
+    queryFn: async () => {
+      if (!selectedRelationship) return [];
+      const allEntries = await base44.entities.TimelineEntry.filter(
+        { relationship_id: selectedRelationship.id },
+        '-created_date'
+      );
+      // Filter out private entries from others
+      return allEntries.filter(e => !e.is_private || e.author_id === user?.id);
+    },
+    enabled: !!selectedRelationship
+  });
+
+  const updateEntryMutation = useMutation({
+    mutationFn: async ({ id, data }) => {
+      return base44.entities.TimelineEntry.update(id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['timeline-entries']);
+    }
+  });
+
+  const deleteEntryMutation = useMutation({
+    mutationFn: async (id) => {
+      return base44.entities.TimelineEntry.delete(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['timeline-entries']);
+      toast.success('Entry deleted');
+    }
+  });
+
+  const handleEntryCreated = () => {
+    setShowNewEntry(false);
+    queryClient.invalidateQueries(['timeline-entries']);
+    toast.success('Entry posted!');
+  };
+
+  const handlePin = (entry) => {
+    updateEntryMutation.mutate({ 
+      id: entry.id, 
+      data: { is_pinned: !entry.is_pinned } 
+    });
+  };
+
+  const handleTogglePrivate = (entry) => {
+    updateEntryMutation.mutate({ 
+      id: entry.id, 
+      data: { is_private: !entry.is_private } 
+    });
+  };
+
+  const handleDelete = (entry) => {
+    if (window.confirm('Are you sure you want to delete this entry?')) {
+      deleteEntryMutation.mutate(entry.id);
+    }
+  };
+
+  // Filter entries
+  const filteredEntries = entries.filter(entry => {
+    const matchesType = filterType === 'all' || entry.entry_type === filterType;
+    const matchesSearch = !searchQuery || 
+      entry.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.title?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesType && matchesSearch;
+  });
+
+  // Separate pinned entries
+  const pinnedEntries = filteredEntries.filter(e => e.is_pinned);
+  const regularEntries = filteredEntries.filter(e => !e.is_pinned);
+
+  const isCoach = profile?.role === 'coach';
+
+  if (!profile) return null;
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {selectedRelationship && (
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setSelectedRelationship(null)}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {selectedRelationship 
+                ? `Timeline with ${isCoach ? selectedRelationship.athlete_name : selectedRelationship.coach_name}`
+                : 'Timeline'
+              }
+            </h1>
+            {selectedRelationship && (
+              <p className="text-slate-500 text-sm capitalize">
+                {selectedRelationship.sport}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {selectedRelationship && (
+          <Button 
+            onClick={() => setShowNewEntry(!showNewEntry)}
+            className="bg-emerald-600 hover:bg-emerald-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            New Entry
+          </Button>
+        )}
+      </div>
+
+      {/* Relationship Selector */}
+      {!selectedRelationship && (
+        <div className="space-y-4">
+          <p className="text-slate-600">
+            Select a {isCoach ? 'athlete' : 'coach'} to view their timeline
+          </p>
+          
+          {relationships.length === 0 ? (
+            <Card className="border-0 shadow-sm">
+              <CardContent className="py-12 text-center">
+                <Users className="w-12 h-12 text-slate-300 mx-auto" />
+                <h3 className="mt-4 font-medium text-slate-900">No connections yet</h3>
+                <p className="mt-2 text-slate-500">
+                  Add {isCoach ? 'athletes' : 'coaches'} to start using the timeline
+                </p>
+                <Link to={createPageUrl('Relationships')}>
+                  <Button className="mt-4 bg-emerald-600 hover:bg-emerald-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Connection
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid sm:grid-cols-2 gap-4">
+              {relationships.map((rel) => {
+                const name = isCoach ? rel.athlete_name : rel.coach_name;
+                const avatar = isCoach ? rel.athlete_avatar : rel.coach_avatar;
+                
+                return (
+                  <motion.div
+                    key={rel.id}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Card 
+                      className="border-0 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => setSelectedRelationship(rel)}
+                    >
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-4">
+                          <Avatar className="w-14 h-14">
+                            <AvatarImage src={avatar} />
+                            <AvatarFallback className="bg-emerald-100 text-emerald-700 text-lg">
+                              {name?.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-semibold text-slate-900">{name}</p>
+                            <Badge variant="outline" className="mt-1 capitalize">
+                              {rel.sport}
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Timeline View */}
+      {selectedRelationship && (
+        <>
+          {/* New Entry Form */}
+          <AnimatePresence>
+            {showNewEntry && (
+              <NewEntryForm
+                relationshipId={selectedRelationship.id}
+                user={user}
+                profile={profile}
+                onSuccess={handleEntryCreated}
+                onCancel={() => setShowNewEntry(false)}
+              />
+            )}
+          </AnimatePresence>
+
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="Search entries..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-full sm:w-40">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="note">Notes</SelectItem>
+                <SelectItem value="image">Images</SelectItem>
+                <SelectItem value="video">Videos</SelectItem>
+                <SelectItem value="file">Files</SelectItem>
+                <SelectItem value="milestone">Milestones</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Entries */}
+          {entriesLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-32 bg-slate-100 rounded-2xl" />
+                </div>
+              ))}
+            </div>
+          ) : filteredEntries.length === 0 ? (
+            <Card className="border-0 shadow-sm">
+              <CardContent className="py-16 text-center">
+                <Clock className="w-12 h-12 text-slate-300 mx-auto" />
+                <h3 className="mt-4 font-medium text-slate-900">No entries yet</h3>
+                <p className="mt-2 text-slate-500">
+                  Start documenting your coaching journey
+                </p>
+                <Button 
+                  className="mt-4 bg-emerald-600 hover:bg-emerald-700"
+                  onClick={() => setShowNewEntry(true)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create First Entry
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {/* Pinned Entries */}
+              {pinnedEntries.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-emerald-600 font-medium">
+                    <Pin className="w-4 h-4" />
+                    Pinned
+                  </div>
+                  {pinnedEntries.map((entry) => (
+                    <TimelineEntryCard
+                      key={entry.id}
+                      entry={entry}
+                      currentUserId={user?.id}
+                      onDelete={handleDelete}
+                      onPin={handlePin}
+                      onTogglePrivate={handleTogglePrivate}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Regular Timeline */}
+              <div className="space-y-0">
+                {regularEntries.map((entry) => (
+                  <TimelineEntryCard
+                    key={entry.id}
+                    entry={entry}
+                    currentUserId={user?.id}
+                    onDelete={handleDelete}
+                    onPin={handlePin}
+                    onTogglePrivate={handleTogglePrivate}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
